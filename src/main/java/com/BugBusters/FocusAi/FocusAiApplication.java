@@ -9,6 +9,7 @@ public class FocusAiApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(FocusAiApplication.class, args);
 		System.out.println("hi ");
+		System.out.println("hi ");
 	}
 
 }
