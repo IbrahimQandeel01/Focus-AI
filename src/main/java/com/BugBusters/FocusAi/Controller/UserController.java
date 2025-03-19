@@ -22,29 +22,33 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.BugBusters.FocusAi.exception.UserNotFoundExeption;
 import com.BugBusters.FocusAi.model.Interests;
 import com.BugBusters.FocusAi.model.UserDetails;
+import com.BugBusters.FocusAi.repository.InterestsRepository;
 import com.BugBusters.FocusAi.repository.UserRepository;
 
 import jakarta.validation.Valid;
 
+
 @RestController
 public class UserController {
 
-	private UserRepository repository;
+	private UserRepository UsersRepository;
+	private InterestsRepository interestsRepository;
 
-	public UserController(UserRepository repository) {
+	public UserController(UserRepository repository,InterestsRepository interestsRepository) {
 		super();
-		this.repository = repository;
+		this.UsersRepository = repository;
+		this.interestsRepository= interestsRepository;
 	}
 
 	@GetMapping("/users")
 	public List<UserDetails> retrieveAllUsers() {
-		return repository.findAll();
+		return UsersRepository.findAll();
 	}
 
 	@GetMapping("/users/{id}")
 	public EntityModel<UserDetails> retrieveOneUserById(@PathVariable Integer id) {
 
-		Optional<UserDetails> oneById = repository.findById(id);
+		Optional<UserDetails> oneById = UsersRepository.findById(id);
 
 		if (oneById == null) {
 			throw new UserNotFoundExeption("id : " + id);
@@ -63,7 +67,7 @@ public class UserController {
 	@PostMapping("/users")
 	public ResponseEntity<Object> CreateUsers(@Valid @RequestBody UserDetails user) {
 
-		UserDetails savedUser = repository.save(user);
+		UserDetails savedUser = UsersRepository.save(user);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}").buildAndExpand(savedUser.getId())
 				.toUri();
@@ -73,12 +77,12 @@ public class UserController {
 	 
 	@DeleteMapping("/users/{id}/delete")
 	public void DeleteUserById(@PathVariable Integer id) {
-		repository.deleteById(id);
+		UsersRepository.deleteById(id);
 	}
 
 	@GetMapping("/users/{id}/interests")
 	public Set<Interests> retrieveAllInterestsForUser(@PathVariable Integer id) {
-		Optional<UserDetails> user = repository.findById(id);
+		Optional<UserDetails> user = UsersRepository.findById(id);
 
 		if (user.isEmpty()) {
 			throw new UserNotFoundExeption("id: " + id);
@@ -87,5 +91,37 @@ public class UserController {
 		return user.get().getInterests() == null ? new HashSet<>() 
 				: user.get().getInterests();
 	}
+	
+	@PostMapping("/users/{id}/interests")
+	public ResponseEntity<Object> createInterestsForUser(@PathVariable Integer id, @Valid @RequestBody Interests interest) {
+	    Optional<UserDetails> userOpt = UsersRepository.findById(id);
+
+	    if (userOpt.isEmpty()) {
+	        throw new UserNotFoundExeption("id: " + id);
+	    }
+
+	    UserDetails user = userOpt.get();
+
+	    Optional<Interests> existingInterest = interestsRepository.findByDescription(interest.getDescription());
+
+	    Interests interestToSave;
+	    if (existingInterest.isPresent()) {
+	        interestToSave = existingInterest.get();
+	    } else {
+	        interestToSave = interestsRepository.save(interest);
+	    }
+	    
+	    user.getInterests().add(interestToSave);
+	    UsersRepository.save(user);
+
+	    URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+	                    .path("/{id}")
+	                    .buildAndExpand(interestToSave.getId())
+	                    .toUri();
+
+	    return ResponseEntity.created(location).build();
+	}
+
+
 
 }
